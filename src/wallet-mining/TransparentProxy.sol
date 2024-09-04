@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
+
 pragma solidity =0.8.25;
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -9,6 +10,7 @@ import {AuthorizerUpgradeable} from "./AuthorizerUpgradeable.sol";
 /**
  * @notice Transparent proxy with an upgrader role handled by its admin.
  */
+
 contract TransparentProxy is ERC1967Proxy {
     address public upgrader = msg.sender;
 
@@ -16,6 +18,7 @@ contract TransparentProxy is ERC1967Proxy {
         ERC1967Utils.changeAdmin(msg.sender);
     }
 
+    // @audit e: Only the admin who is set in the constructor can set the upgrade
     function setUpgrader(address who) external {
         require(msg.sender == ERC1967Utils.getAdmin(), "!admin");
         upgrader = who;
@@ -30,6 +33,7 @@ contract TransparentProxy is ERC1967Proxy {
             require(msg.sig == bytes4(keccak256("upgradeToAndCall(address, bytes)")));
             _dispatchUpgradeToAndCall();
         } else {
+            // @audit e: If the caller is not the upgrader, the fallback function of the proxy is called
             super._fallback();
         }
     }
@@ -38,4 +42,6 @@ contract TransparentProxy is ERC1967Proxy {
         (address newImplementation, bytes memory data) = abi.decode(msg.data[4:], (address, bytes));
         ERC1967Utils.upgradeToAndCall(newImplementation, data);
     }
+
+    
 }

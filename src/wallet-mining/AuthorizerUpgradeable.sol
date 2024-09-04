@@ -2,6 +2,9 @@
 // Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
 pragma solidity =0.8.25;
 
+import {console} from "forge-std/Console.sol";
+
+// @audit upgrade the authorizer
 contract AuthorizerUpgradeable {
     uint256 public needsInit = 1;
     mapping(address => mapping(address => uint256)) private wards;
@@ -11,8 +14,9 @@ contract AuthorizerUpgradeable {
     constructor() {
         needsInit = 0; // freeze implementation
     }
-
-    function init(address[] memory _wards, address[] memory _aims) external {
+    // @audit e: usr == deployer == ward
+    // @audit e: Certain deployers (wards) are authorized to deploy at certain addresses (aims)
+    function init(address[] memory _wards, address[] memory _aims) external {   
         require(needsInit != 0, "cannot init");
         for (uint256 i = 0; i < _wards.length; i++) {
             _rely(_wards[i], _aims[i]);

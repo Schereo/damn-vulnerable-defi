@@ -42,8 +42,9 @@ contract L1Forwarder is ReentrancyGuard, Ownable {
         bytes32 messageId = keccak256(
             abi.encodeWithSignature("forwardMessage(uint256,address,address,bytes)", nonce, l2Sender, target, message)
         );
-
+        // @audit e: If we cann this without the gateway, msg.sender != address(gateway)
         if (msg.sender == address(gateway) && gateway.xSender() == l2Handler) {
+            // @audit e: This will be true for all 
             require(!failedMessages[messageId]);
         } else {
             require(failedMessages[messageId]);
@@ -70,6 +71,8 @@ contract L1Forwarder is ReentrancyGuard, Ownable {
         }
     }
 
+    // @audit q: Are we somehow able to set l2sender to the other bridge? ->
+    // @audit a: Setting l2Sender will alter the messageId but maybe we can get an old context?
     function getSender() external view returns (address) {
         return context.l2Sender;
     }

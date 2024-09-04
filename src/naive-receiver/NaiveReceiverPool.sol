@@ -8,6 +8,8 @@ import {FlashLoanReceiver} from "./FlashLoanReceiver.sol";
 import {Multicall} from "./Multicall.sol";
 import {WETH} from "solmate/tokens/WETH.sol";
 
+import {console} from "forge-std/Console.sol";
+
 contract NaiveReceiverPool is Multicall, IERC3156FlashLender {
     uint256 private constant FIXED_FEE = 1e18; // not the cheapest flash loan
     bytes32 private constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
@@ -68,10 +70,12 @@ contract NaiveReceiverPool is Multicall, IERC3156FlashLender {
         deposits[_msgSender()] -= amount;
         totalDeposits -= amount;
 
+        // @audit This does not transfer ETH but WETH
         // Transfer ETH to designated receiver
         weth.transfer(receiver, amount);
     }
 
+    // @audit q: So deposits are made in ETH and withdrawls in WETH?
     function deposit() external payable {
         _deposit(msg.value);
     }
@@ -85,6 +89,8 @@ contract NaiveReceiverPool is Multicall, IERC3156FlashLender {
 
     function _msgSender() internal view override returns (address) {
         if (msg.sender == trustedForwarder && msg.data.length >= 20) {
+            // @audit q: Does this get the request.from ? 
+            // @audit a: This extracts the last 20 bytes of the data which should always be the from
             return address(bytes20(msg.data[msg.data.length - 20:]));
         } else {
             return super._msgSender();

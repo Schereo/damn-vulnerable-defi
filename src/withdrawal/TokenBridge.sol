@@ -21,6 +21,8 @@ contract TokenBridge {
     }
 
     function executeTokenWithdrawal(address receiver, uint256 amount) external {
+        // @audit e: This check has to fail. The sender has to be the l1Forwarder since it keepts track of the errors.
+        // @audit e: So l1Forwarder.getSender() has to be set to l2TokenBridge
         if (msg.sender != address(l1Forwarder) || l1Forwarder.getSender() == otherBridge) revert Unauthorized();
         totalDeposits -= amount;
         token.transfer(receiver, amount);

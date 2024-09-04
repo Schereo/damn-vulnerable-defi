@@ -2,6 +2,7 @@
 // Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
 pragma solidity =0.8.25;
 
+import {console} from "forge-std/Console.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 abstract contract ClimberTimelockBase is AccessControl {
@@ -25,9 +26,10 @@ abstract contract ClimberTimelockBase is AccessControl {
 
     uint64 public delay;
 
-    function getOperationState(bytes32 id) public view returns (OperationState state) {
+    function getOperationState(
+        bytes32 id
+    ) public view returns (OperationState state) {
         Operation memory op = operations[id];
-
         if (op.known) {
             if (op.executed) {
                 state = OperationState.Executed;

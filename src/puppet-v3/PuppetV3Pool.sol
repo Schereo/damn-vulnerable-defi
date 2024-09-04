@@ -36,9 +36,10 @@ contract PuppetV3Pool {
      * @param borrowAmount amount of tokens the user intends to borrow
      */
     function borrow(uint256 borrowAmount) external {
-        // Calculate how much WETH the user must deposit
+        // @audit e: Calculate how much WETH the user must deposit
         uint256 depositOfWETHRequired = calculateDepositOfWETHRequired(borrowAmount);
 
+        // @audit e: Permit2 is a protocol that makes it easier for users to manage allowances
         //TODO: use Permit2 (0x000000000022D473030F116dDEE9F6B43aC78BA3)
 
         // Pull WETH from caller
@@ -59,6 +60,7 @@ contract PuppetV3Pool {
     }
 
     function _getOracleQuote(uint128 amount) private view returns (uint256) {
+        // Gets the arithmetic mean tick over the last 10 minutes
         (int24 arithmeticMeanTick,) = OracleLibrary.consult({pool: address(uniswapV3Pool), secondsAgo: TWAP_PERIOD});
         return OracleLibrary.getQuoteAtTick({
             tick: arithmeticMeanTick,

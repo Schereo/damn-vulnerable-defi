@@ -8,6 +8,7 @@ import {Owned} from "solmate/auth/Owned.sol";
 import {SafeTransferLib, ERC4626, ERC20} from "solmate/tokens/ERC4626.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IERC3156FlashBorrower, IERC3156FlashLender} from "@openzeppelin/contracts/interfaces/IERC3156.sol";
+import {console} from "forge-std/Console.sol";
 
 /**
  * An ERC4626-compliant tokenized vault offering flashloans for a fee.
@@ -82,6 +83,9 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
         if (amount == 0) revert InvalidAmount(0); // fail early
         if (address(asset) != _token) revert UnsupportedCurrency(); // enforce ERC3156 requirement
         uint256 balanceBefore = totalAssets();
+        console.log("balanceBefore: %s", balanceBefore);
+        console.log("totalSupply: %s", totalSupply);
+        console.log("convertToShares(totalSupply): %s", convertToShares(totalSupply));
         if (convertToShares(totalSupply) != balanceBefore) revert InvalidBalance(); // enforce ERC4626 requirement
 
         // transfer tokens out + execute callback on receiver

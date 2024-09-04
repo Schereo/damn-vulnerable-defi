@@ -17,7 +17,7 @@ interface IUniswapV1Exchange {
     function approve(address _spender, uint256 _value) external returns (bool out);
     function balanceOf(address _owner) external returns (uint256 out);
     function decimals() external returns (uint256 out);
-    function ethToTokenSwapInput(uint256 min_tokens, uint256 deadline) external returns (uint256 out);
+    function ethToTokenSwapInput(uint256 min_tokens, uint256 deadline) external payable returns (uint256 out);
     function ethToTokenSwapOutput(uint256 tokens_bought, uint256 deadline) external returns (uint256 out);
     function ethToTokenTransferInput(uint256 min_tokens, uint256 deadline, address recipient)
         external

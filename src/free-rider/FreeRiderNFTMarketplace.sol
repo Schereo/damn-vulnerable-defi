@@ -62,6 +62,7 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
             revert InvalidPrice();
         }
 
+        // I though that maybe overwriting the prices would be an option but I guess the owner of the IDs is checked here
         if (msg.sender != _token.ownerOf(tokenId)) {
             revert CallerNotOwner(tokenId);
         }
@@ -72,6 +73,8 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
 
         offers[tokenId] = price;
 
+        // @audit I guess this should increment offersCount but it increments the offers mapping
+        // -> Wrong assumption, it increments the offersCount because the first storage slot is taken by _status of ReentrancyGuard
         assembly {
             // gas savings
             sstore(0x02, add(sload(0x02), 0x01))
@@ -98,6 +101,7 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
             revert InsufficientPayment();
         }
 
+        // @audit Unchecked, underflow possible
         --offersCount;
 
         // transfer from seller to buyer
@@ -110,5 +114,6 @@ contract FreeRiderNFTMarketplace is ReentrancyGuard {
         emit NFTBought(msg.sender, tokenId, priceToPay);
     }
 
+    // Why needs the contract to receive ETH?
     receive() external payable {}
 }

@@ -7,11 +7,13 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
+import {console} from "forge-std/console.sol";
 
 struct Distribution {
     uint256 remaining;
     uint256 nextBatchNumber;
     mapping(uint256 batchNumber => bytes32 root) roots;
+    // Each claimer has a bitmap for each batch
     mapping(address claimer => mapping(uint256 word => uint256 bits)) claims;
 }
 
@@ -30,6 +32,7 @@ contract TheRewarderDistributor {
 
     address public immutable owner = msg.sender;
 
+    // There is a distribution for every token
     mapping(IERC20 token => Distribution) public distributions;
 
     error StillDistributing();
@@ -52,9 +55,13 @@ contract TheRewarderDistributor {
         return distributions[IERC20(token)].roots[batchNumber];
     }
 
+    // Creates a distribution for a token with a merkle root, a batch number depending on 
+    // the previous distribution and a remaining amount of tokens to distribute. The amount
+    // of tokens to distribute is transferred from the sender to the contract.
     function createDistribution(IERC20 token, bytes32 newRoot, uint256 amount) external {
         if (amount == 0) revert NotEnoughTokensToDistribute();
         if (newRoot == bytes32(0)) revert InvalidRoot();
+        // @audit DoS vector if a single person has not claimed their tokens?
         if (distributions[token].remaining != 0) revert StillDistributing();
 
         distributions[token].remaining = amount;
@@ -86,25 +93,30 @@ contract TheRewarderDistributor {
 
         for (uint256 i = 0; i < inputClaims.length; i++) {
             inputClaim = inputClaims[i];
-
+            
+            // Calculate bitmap position
             uint256 wordPosition = inputClaim.batchNumber / 256;
             uint256 bitPosition = inputClaim.batchNumber % 256;
-
+            // If this is the first claim for the current token
             if (token != inputTokens[inputClaim.tokenIndex]) {
+                
+                // @audit Token == address(0) in the first iteration when its not yet set
+                // @audit token will be set on the on the first iteration 
                 if (address(token) != address(0)) {
                     if (!_setClaimed(token, amount, wordPosition, bitsSet)) revert AlreadyClaimed();
                 }
 
                 token = inputTokens[inputClaim.tokenIndex];
-                bitsSet = 1 << bitPosition; // set bit at given position
+                bitsSet = 1 << bitPosition; // set bit at given position within the word
                 amount = inputClaim.amount;
-            } else {
+            } else { // This is not the first claim for the current token so we 
                 bitsSet = bitsSet | 1 << bitPosition;
                 amount += inputClaim.amount;
             }
 
             // for the last claim
             if (i == inputClaims.length - 1) {
+                console.log("Check performed for last claim");
                 if (!_setClaimed(token, amount, wordPosition, bitsSet)) revert AlreadyClaimed();
             }
 

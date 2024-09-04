@@ -27,10 +27,11 @@ contract BasicForwarder is EIP712 {
     error InvalidTarget();
     error InvalidValue();
 
-    bytes32 private constant _REQUEST_TYPEHASH = keccak256(
-        "Request(address from,address target,uint256 value,uint256 gas,uint256 nonce,bytes data,uint256 deadline"
-    );
-
+    bytes32 private constant _REQUEST_TYPEHASH =
+        keccak256(
+            "Request(address from,address target,uint256 value,uint256 gas,uint256 nonce,bytes data,uint256 deadline"
+        );
+    // @audit Nonces are not handled properly for multicalls but there is no transaction to replay
     mapping(address => uint256) public nonces;
 
     /**
@@ -41,18 +42,31 @@ contract BasicForwarder is EIP712 {
      * - Target a contract that accepts this forwarder
      * - Be signed by the original sender (`from` field)
      */
-    function _checkRequest(Request calldata request, bytes calldata signature) private view {
+    function _checkRequest(
+        Request calldata request,
+        bytes calldata signature
+    ) private view {
         if (request.value != msg.value) revert InvalidValue();
         if (block.timestamp > request.deadline) revert OldRequest();
         if (nonces[request.from] != request.nonce) revert InvalidNonce();
 
-        if (IHasTrustedForwarder(request.target).trustedForwarder() != address(this)) revert InvalidTarget();
+        if (
+            IHasTrustedForwarder(request.target).trustedForwarder() !=
+            address(this)
+        ) revert InvalidTarget();
 
-        address signer = ECDSA.recover(_hashTypedData(getDataHash(request)), signature);
+        // @audit This uses `ECDSA.recover` instead of `ECDSA.tryRecover` and addition _hashTypedData is used opposed to `hashTypedDataV4`
+        address signer = ECDSA.recover(
+            _hashTypedData(getDataHash(request)),
+            signature
+        );
         if (signer != request.from) revert InvalidSigner();
     }
 
-    function execute(Request calldata request, bytes calldata signature) public payable returns (bool success) {
+    function execute(
+        Request calldata request,
+        bytes calldata signature
+    ) public payable returns (bool success) {
         _checkRequest(request, signature);
 
         nonces[request.from]++;
@@ -63,10 +77,19 @@ contract BasicForwarder is EIP712 {
         bytes memory payload = abi.encodePacked(request.data, request.from);
         uint256 forwardGas = request.gas;
         assembly {
-            success := call(forwardGas, target, value, add(payload, 0x20), mload(payload), 0, 0) // don't copy returndata
+            success := call(
+                forwardGas,
+                target,
+                value,
+                add(payload, 0x20),
+                mload(payload),
+                0,
+                0
+            ) // don't copy returndata
             gasLeft := gas()
         }
 
+        // @audit seems legit since its also done in the OpenZeppelin implementation
         if (gasLeft < request.gas / 63) {
             assembly {
                 invalid()
@@ -74,24 +97,30 @@ contract BasicForwarder is EIP712 {
         }
     }
 
-    function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
+    function _domainNameAndVersion()
+        internal
+        pure
+        override
+        returns (string memory name, string memory version)
+    {
         name = "BasicForwarder";
         version = "1";
     }
 
     function getDataHash(Request memory request) public pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                _REQUEST_TYPEHASH,
-                request.from,
-                request.target,
-                request.value,
-                request.gas,
-                request.nonce,
-                keccak256(request.data),
-                request.deadline
-            )
-        );
+        return
+            keccak256(
+                abi.encode(
+                    _REQUEST_TYPEHASH,
+                    request.from,
+                    request.target,
+                    request.value,
+                    request.gas,
+                    request.nonce,
+                    keccak256(request.data),
+                    request.deadline
+                )
+            );
     }
 
     function domainSeparator() external view returns (bytes32) {

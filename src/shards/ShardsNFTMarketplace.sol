@@ -47,7 +47,7 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
         paymentToken = _paymentToken;
         nft = _nft;
         oracle = _oracle;
-        rate = _initialRate;
+        rate = _initialRate; // 75e15
 
         // Deploy minimal proxy for fee vault. Then initialize it and approve max
         feeVault = ShardsFeeVault(Clones.clone(_feeVaultImplementation));
@@ -132,6 +132,8 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
                 cancelled: false
             })
         );
+        // @audit q: Check if shard amount calculation is correct
+        // @audit a: want = 13: 13 * 75e22 / 1_000e22 = 0.975 rounded down to 0 
         paymentToken.transferFrom(
             msg.sender, address(this), want.mulDivDown(_toDVT(offer.price, _currentRate), offer.totalShards)
         );
@@ -159,7 +161,8 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
         purchase.cancelled = true;
 
         emit Cancelled(offerId, purchaseIndex);
-
+        // @audit e: No matter the math behind the calculation, the buyer will get at least 1 DVT because of the rounding
+        // @audit e: 13 * 75e15 / 1e6  = 97.5e10
         paymentToken.transfer(buyer, purchase.shards.mulDivUp(purchase.rate, 1e6));
     }
 
@@ -176,6 +179,7 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
      * @notice Given a price in USDC, uses the oracle's rate to calculate the fees in DVT
      * @param price price in USDC units
      */
+    // @audit q: There are no zero checks
     function getFee(uint256 price, uint256 _rate) public pure returns (uint256) {
         uint256 fee = price.mulDivDown(1e6, 100e6); // 1% fee
         return _toDVT(fee, _rate);
@@ -202,9 +206,11 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
         Purchase[] memory _purchases = purchases[offerId];
         uint256 payment;
 
+        // @audit q: Can you DoS the protocol by filling the offer with a large number of shards?
         for (uint256 i = 0; i < _purchases.length; i++) {
             Purchase memory purchase = _purchases[i];
             if (purchase.cancelled) continue;
+            // @audit e: shards * 75e15 / 1e18, payment will only be 1 up to 13 shards
             payment += purchase.shards.mulWadUp(purchase.rate);
             _mint({to: purchase.buyer, id: offer.nftId, value: purchase.shards, data: ""});
             assert(balanceOf(purchase.buyer, offer.nftId) <= offer.totalShards); // invariant
@@ -215,7 +221,9 @@ contract ShardsNFTMarketplace is IShardsNFTMarketplace, IERC721Receiver, ERC1155
         paymentToken.transfer(offer.seller, payment);
     }
 
+    // @audit e: Example with default values: 1_000_000e6 * 75e15 / 1e6 = 75e21
     function _toDVT(uint256 _value, uint256 _rate) private pure returns (uint256) {
+        // @audit e: With rising rate, the DVT amount will also rise
         return _value.mulDivDown(_rate, 1e6);
     }
 }

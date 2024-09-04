@@ -15,6 +15,7 @@ contract ShardsFeeVault is Initializable, Ownable {
     DamnValuableStaking public staking;
 
     constructor() {
+        // @audit dafuq is deadbeef?
         _initializeOwner(address(0xdeadbeef));
         _disableInitializers();
     }

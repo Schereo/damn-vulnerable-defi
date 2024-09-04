@@ -2,6 +2,7 @@
 // Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
 pragma solidity =0.8.25;
 
+import {console} from "forge-std/Console.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
@@ -46,6 +47,8 @@ abstract contract AuthorizedExecutor is ReentrancyGuard {
     function execute(address target, bytes calldata actionData) external nonReentrant returns (bytes memory) {
         // Read the 4-bytes selector at the beginning of `actionData`
         bytes4 selector;
+        // 4 bytes for the selector (execute()), 32 bytes for the target, 
+        // actionData is of variable length, therefore the first 32 bytes are a offset pointer to the actual data, and the second 32 bytes are the length of the data        
         uint256 calldataOffset = 4 + 32 * 3; // calldata position where `actionData` begins
         assembly {
             selector := calldataload(calldataOffset)
@@ -62,6 +65,7 @@ abstract contract AuthorizedExecutor is ReentrancyGuard {
 
     function _beforeFunctionCall(address target, bytes memory actionData) internal virtual;
 
+    // @audit e: The action id is a hash of the selector, executor, and target
     function getActionId(bytes4 selector, address executor, address target) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(selector, executor, target));
     }

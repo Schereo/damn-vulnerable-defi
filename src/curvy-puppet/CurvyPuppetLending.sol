@@ -52,6 +52,7 @@ contract CurvyPuppetLending is ReentrancyGuard {
         uint256 remainingCollateralValue = getCollateralValue(remainingCollateral);
         uint256 borrowValue = getBorrowValue(positions[msg.sender].borrowAmount);
 
+        // @audit e: If I borrow more than the 1.75x of the remaining collateral value, the position is unhealthy
         if (borrowValue * 175 > remainingCollateralValue * 100) revert UnhealthyPosition();
 
         positions[msg.sender].collateralAmount = remainingCollateral;
@@ -63,6 +64,7 @@ contract CurvyPuppetLending is ReentrancyGuard {
         uint256 collateralValue = getCollateralValue(positions[msg.sender].collateralAmount);
         uint256 currentBorrowValue = getBorrowValue(positions[msg.sender].borrowAmount);
 
+        // @audit e: Looks fine, maybe a little low precision?
         uint256 maxBorrowValue = collateralValue * 100 / 175;
         uint256 availableBorrowValue = maxBorrowValue - currentBorrowValue;
 
@@ -82,11 +84,13 @@ contract CurvyPuppetLending is ReentrancyGuard {
         IERC20(borrowAsset).transfer(msg.sender, amount);
     }
 
+    // @audit e: Pay back borrowed assets
     function redeem(uint256 amount) external nonReentrant {
         if (amount == 0) revert InvalidAmount();
         positions[msg.sender].borrowAmount -= amount;
         _pullAssets(borrowAsset, amount);
 
+        // @audit e: If I have paid back all borrowed assets, I automatically get my collateral back
         if (positions[msg.sender].borrowAmount == 0) {
             uint256 returnAmount = positions[msg.sender].collateralAmount;
             positions[msg.sender].collateralAmount = 0;
@@ -94,6 +98,7 @@ contract CurvyPuppetLending is ReentrancyGuard {
         }
     }
 
+    // I repay the borrowed assets and their collateral
     function liquidate(address target) external nonReentrant {
         uint256 borrowAmount = positions[target].borrowAmount;
         uint256 collateralAmount = positions[target].collateralAmount;
@@ -108,11 +113,13 @@ contract CurvyPuppetLending is ReentrancyGuard {
         IERC20(collateralAsset).transfer(msg.sender, collateralAmount);
     }
 
+    // @audit e: The borrowed asset is the LP token, when the price of the LP token rises, users risk being liquidated
     function getBorrowValue(uint256 amount) public view returns (uint256) {
         if (amount == 0) return 0;
         return amount.mulWadUp(_getLPTokenPrice());
     }
 
+    // @audit e. The oracle price is fixed and cannot be influenced
     function getCollateralValue(uint256 amount) public view returns (uint256) {
         if (amount == 0) return 0;
         return amount.mulWadDown(oracle.getPrice(collateralAsset).value);
@@ -129,7 +136,9 @@ contract CurvyPuppetLending is ReentrancyGuard {
     function _pullAssets(address asset, uint256 amount) private {
         permit2.transferFrom({from: msg.sender, to: address(this), amount: SafeCast.toUint160(amount), token: asset});
     }
-
+    // @audit e: Coin(0) is ETH, only ETH is used for the LP price calculation
+    // @audit e: Price ETH * LP price / 1e18
+    // @audit e: The price of the LP token has to rise for users to be liquidated
     function _getLPTokenPrice() private view returns (uint256) {
         return oracle.getPrice(curvePool.coins(0)).value.mulWadDown(curvePool.get_virtual_price());
     }
